@@ -1,0 +1,17 @@
+matplotlib
+jupyterlab
+pylint
+autopep8
+black
+yapf
+bandit
+flake8
+mypy
+pycodestyle
+typing-extensions
+numpy
+pandas
+scipy
+scikit-learn
+torch
+tensorflow
