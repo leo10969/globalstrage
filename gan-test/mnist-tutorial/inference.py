@@ -4,7 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
-def generate_images(generator, batch_size=100):
+#GPUを選択
+GPU = 1
+
+def generate_images(generator, batch_size):
     """
     生成器から画像を生成して表示する関数
     """
@@ -31,18 +34,14 @@ def generate_images(generator, batch_size=100):
     plt.show()
 
 if __name__ == "__main__":
-    # コマンドライン引数からモデルのパスを取得
-    if len(sys.argv) < 2:
-        print("Usage: python inference.py <path_to_your_model>")
-        sys.exit(1)
+    with tf.device('/gpu:{}'.format(GPU)):
+        model_path = '/home/rsato/.vscode-server/data/User/globalStorage/gan-test/Generator'
 
-    model_path = '/workspaces/gan_test/gan_tutorial/gan_tutorial/modelfolder'
+        # モデルのロード
+        generator_loaded = tf.keras.models.load_model(model_path)
 
-    # モデルのロード
-    generator_loaded = tf.keras.models.load_model(model_path)
+        # バッチサイズ
+        batch_size = 64
 
-    # バッチサイズ
-    batch_size = 100
-
-    # 画像の生成と表示
-    generate_images(generator_loaded, batch_size=batch_size)
+        # 画像の生成と表示
+        generate_images(generator_loaded, batch_size)
