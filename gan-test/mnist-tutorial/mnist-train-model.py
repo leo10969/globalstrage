@@ -237,7 +237,7 @@ def train_model(generator, discriminator, train_dataset, num_epoch, batch_size):
     print("Training Done!")
     # 生成器と識別器を保存
     generator.save('/home/rsato/.vscode-server/data/User/globalStorage/gan-test/Generator')
-    discriminator.save('/home/rsato/.vscode-server/data/User/globalStorage/gan-test/Discriminator')
+    discriminator.save('/home/rsato/.vscode-server/data/User/globalStorage/gan-test/NewDis')
 
     return generator,discriminator
 
@@ -264,7 +264,7 @@ with tf.device('/gpu:{}'.format(GPU)):
 
     # データセットパラメータ
     BUFFER_SIZE = 60000  # データセットのサイズ
-    BATCH_SIZE = 256  # バッチサイズ
+    BATCH_SIZE = 512  # バッチサイズ
 
     # バッチ処理とシャッフルを行うデータセットを作成
     train_dataset = tf.data.Dataset.from_tensor_slices(x_train).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
