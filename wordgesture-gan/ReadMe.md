@@ -43,10 +43,37 @@ x_radius, y_radius, angle, word, is_err
 (https://myoctocat.com/assets/images/base-octocat.svg) -->
 
 ##　手順2（WordGesture-GAN）
-
+memo
+- Generatorへの入力：word-prototypeとVAEを通してエンコードされたガウシアン潜在コード
 ### Generator
 1. word_prototype.py: 入力のための単語プロトタイプの作成
+2. wordgesture-gan.py: Generatorの定義
 
-### Auto Variable Encoder
+#### Generatorの構成
+- BiLSTM 35x32
+   - BiLSTM 32x32
+      - BiLSTM 32x32
+         - BiLSTM 32x32
+            - Linear Layer 32x3
+               - Tanh Activation
+
+### Auto Variational Encoder
+
+#### AVEの構成
+- Linear 384x192, Leaky ReLU
+   - Linear 192x96, Leaky ReLU
+      - Linear 96x48, Leaky ReLU
+         - Linear 48x32, Leaky ReLU
+            - Mu
+            - Log Variance
+
+
 
 ### Discriminator
+
+#### DisCriminatorの構成
+- Linear 384x192, Leaky ReLU
+   - Linear 192x96, Leaky ReLU
+      - Linear 96x48, Leaky ReLU
+         - Linear 48x24, Leaky ReLU
+            - Linear 24x1, Leaky ReLU
