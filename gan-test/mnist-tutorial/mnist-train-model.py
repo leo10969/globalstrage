@@ -159,7 +159,7 @@ def generator_loss(fake_output):
     return BCE(tf.ones_like(fake_output), fake_output)
 
 #%%
-#最適化手法(Adamと呼ばれる勾配降下手法を用います)
+#最適化手法(Adam)
 
 #generator
 generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
