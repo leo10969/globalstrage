@@ -38,7 +38,7 @@ def merge_and_split_gestures(input_directory, output_folder):
 
 with tf.device('/gpu:{}'.format(GPU)):
     # 入力ディレクトリと出力フォルダを指定
-    input_directory = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/datasets/swipecsvs_normalized'
+    input_directory = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/datasets/swipecsvs_new'
     output_folder = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/datasets/train_datasets'
 
     # ジェスチャのまとまりを統合して分割

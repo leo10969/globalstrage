@@ -188,7 +188,7 @@ def train_model(generator, discriminator, train_dataset, num_epoch, batch_size):
         epoch_d_loss = 0.0 
 
         for train_x in train_dataset: 
-
+            print(train_x.shape)
             ## 1. Discriminatorの学習
 
             # ノイズをガウス分布からサンプリングします
@@ -255,20 +255,23 @@ g_loss_obj = tf.metrics.Mean()
 with tf.device('/gpu:{}'.format(GPU)):
     # MNISTデータをロード
     (x_train, _), (_, _) = mnist.load_data()
+    print(x_train.shape)
 
     # データを-1から1の範囲に正規化
     x_train = (x_train - 127.5) / 127.5
+    print(x_train.shape)
 
     # データの形状を(batch_size, height, width, channels)に変更
     x_train = x_train.reshape(x_train.shape[0], 28, 28, 1).astype('float32')
 
+    print(x_train.shape)
     # データセットパラメータ
     BUFFER_SIZE = 60000  # データセットのサイズ
     BATCH_SIZE = 512  # バッチサイズ
 
     # バッチ処理とシャッフルを行うデータセットを作成
     train_dataset = tf.data.Dataset.from_tensor_slices(x_train).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
-
+    print(train_dataset)
 
     # train_model関数の呼び出し
     G_update, D_update = train_model(generator, discriminator, train_dataset, 20, BATCH_SIZE)

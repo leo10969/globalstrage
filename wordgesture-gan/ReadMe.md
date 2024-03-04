@@ -44,6 +44,8 @@ x_radius, y_radius, angle, word, is_err
 - How We SWipeが提供しているword_freq.txtはおそらく，その単語が少なくとも1つ含まれているファイルの数（例えば，"you"は1339個のファイルのうちの1039個
 - removetoomuch.py：1回の処理ではどうしても特に出現回数が多い単語（this, the, youなど）を5個まで絞ることができない．reremove.pyで2回処理を行うとうまく全ての単語が5つ以下の出現数になるようにできる．よって，formatting/word_file_dict2.txtは1回目の処理がランダムな故，毎回（削除）更新する必要がある．
 - 新たに，is_alphabetical関数を作成し，正規表現でないアルファベット以外の文字が含まれているかを調べて除く必要がある．(3/1に発覚)
+→formatting/にあるword_file_dict2.txtは，正規表現以外も含まれているので注意．一応，formatting/removetoomuch.pyの
+delete_word_group_from_file関数内に追記（ただし，試してない）．word_file_dict.txtを作成済みの場合は，alphabet_detect.pyを使用する
 
 ### 下処理後のデータセットの中身
 - 約38000個のジェスチャデータ（1英単語最大5つのジェスチャデータ）

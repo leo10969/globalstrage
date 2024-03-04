@@ -4,6 +4,7 @@ import numpy as np
 import os
 import tensorflow as tf
 import re
+import ast
 
 # キーボードの各キーの正規化された中心座標
 key_centers = {
@@ -22,14 +23,16 @@ key_centers = {
 def is_alphabetical(word):
     return re.match(r'^[a-zA-Z]+$', word) is not None
 
-# ファイルを読み込む関数
+# ファイルから辞書データを読み込む関数
 def read_words(file_path):
-    with open(file_path, 'r', encoding='utf-8') as file:  # エンコーディングを指定
-        for line in file:
-            print(line)
-            _, word = line.strip().split()  # 1列目の文字列を取得
-            if len(word) > 1 and is_alphabetical(word):  # 文字列の長さが1より大きく、アルファベットのみで構成されている場合のみ返す
-                yield word
+    with open(file_path, 'r', encoding='utf-8') as file:
+        data = file.read()  # ファイルの内容を読み込む
+        dict_data = ast.literal_eval(data)  # 文字列を辞書として評価
+
+    # 条件に合致するキー（単語）を返す
+    for word in dict_data.keys():
+        if len(word) > 1 and is_alphabetical(word):  # 文字列の長さが1より大きく、アルファベットのみで構成されている場合
+            yield word
 
 
 # 各単語のプロット座標を生成し、CSVと画像を保存する関数
@@ -86,7 +89,7 @@ def main():
     GPU = 1
     with tf.device('/gpu:{}'.format(GPU)):
         #word_freq.txtファイルのパス
-        file_path = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/formatting/words_freq.txt'
+        file_path = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/formatting/word_file_dict2.txt'
         csv_folder = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/prototype/prototype_csv'  # CSVファイルを保存するフォルダ
         img_folder = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/prototype/prototype_imgs'  # 画像を保存するフォルダ
 

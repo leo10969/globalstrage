@@ -3,6 +3,7 @@ import pandas as pd
 import random
 import json
 import sys
+import alphabet_detect as ad
 
 # テキストファイルを読み込む関数
 def load_word_freq_dict(filepath):
@@ -92,11 +93,14 @@ def delete_word_group_from_file(output_folder_path, filename, word):
             group_to_remove = random.choice(groups_to_remove)
             # 選択された1つのグループを削除
             df = df[~(df['group'] == group_to_remove)]
+            #正規表現でアルファベット以外の単語を削除
+            df_filtered = df[~df['word'].apply(ad.is_non_alphabetical)]
+
             # 変更を新しいフォルダに保存
-            df.to_csv(output_filepath, index=False)
+            df_filtered.to_csv(output_filepath, index=False)
             print('deleted:', word)
 
-# #ランダム→上から順に消すように変更       
+# #ランダム→上から順に消す
 # def delete_word_group_from_file(output_folder_path, filename, word):
 #     output_filepath = os.path.join(output_folder_path, filename)  # 出力ファイルパス
 #     df = pd.read_csv(output_filepath)
