@@ -255,7 +255,7 @@ g_loss_obj = tf.metrics.Mean()
 with tf.device('/gpu:{}'.format(GPU)):
     # MNISTデータをロード
     (x_train, _), (_, _) = mnist.load_data()
-    print(x_train.shape)
+    print(x_train)
 
     # データを-1から1の範囲に正規化
     x_train = (x_train - 127.5) / 127.5
