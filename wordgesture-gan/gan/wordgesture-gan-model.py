@@ -1,7 +1,8 @@
 import tensorflow as tf
 from tensorflow.keras import layers, Model
-from tensorflow_addons.layers import SpectralNormalization
+from tensorflow.keras.layers import SpectralNormalization
 import torch
+import pandas as pd
 
 # Encoder
 class VariationalEncoder(tf.keras.Model):
@@ -53,11 +54,11 @@ class Discriminator(tf.keras.Model):
         super(Discriminator, self).__init__()
         #正規化のためにSpectralNormalizationを使用
         self.discriminator = tf.keras.Sequential([
-            SpectralNormalization(192, activation=tf.keras.layers.LeakyReLU()),
-            SpectralNormalization(96, activation=tf.keras.layers.LeakyReLU()),
-            SpectralNormalization(48, activation=tf.keras.layers.LeakyReLU()),
-            SpectralNormalization(24, activation=tf.keras.layers.LeakyReLU()),
-            SpectralNormalization(1, activation=tf.keras.layers.LeakyReLU())
+            SpectralNormalization(layers.Dense(192, activation='leaky_relu', input_shape=(384,))),
+            SpectralNormalization(layers.Dense(96, activation='leaky_relu')),
+            SpectralNormalization(layers.Dense(48, activation='leaky_relu')),
+            SpectralNormalization(layers.Dense(24, activation='leaky_relu')),
+            SpectralNormalization(layers.Dense(1, activation='leaky_relu'))
         ])
     
     def call(self, x):
@@ -135,7 +136,7 @@ DISC_UPDATES = 5
 
 # 訓練ステップの定義
 @tf.function
-def train_step(real_data, generator, discriminator, encoder, generator_optimizer, discriminator_optimizer, word_prototype):
+def train_step(real_data, generator, discriminator, encoder, generator_optimizer, discriminator_optimizer, gen_input):
     # Discriminatorの更新
     for _ in range(DISC_UPDATES):
         with tf.GradientTape() as disc_tape:
@@ -157,16 +158,6 @@ def train_step(real_data, generator, discriminator, encoder, generator_optimizer
     
     # Generatorの更新
     with tf.GradientTape() as gen_tape:
-        # 実データから潜在コードを生成
-        mu, log_var = encoder(real_data, training=False)  # エンコーダは推論モードで動作する
-        z = encoder.reparameterize(mu, log_var)
-
-        # # ワードプロトタイプを取得（この部分は実装が必要です）
-        # word_prototype = ... # word_prototypeの生成方法は実装により異なります
-        
-        # ジェネレータの入力を得る
-        gen_input = get_generator_input(word_prototype, z)
-        
         # ジェネレータを使用して偽のデータを生成
         fake_data = generator(gen_input)
         
@@ -188,17 +179,8 @@ def train_step(real_data, generator, discriminator, encoder, generator_optimizer
     
     # エンコーダは凍結されているため、勾配計算や更新は行わない
 
-# 仮のデータを用いて関数をテストする。
-word_prototype = tf.random.normal([128, 3])  # 128ステップのワードプロトタイプ
-z = tf.random.normal([32])                   # 32次元のガウシアンノイズ
 
-# ジェネレータの入力を取得する。
-gen_input = get_generator_input(word_prototype, z)
-
-print(gen_input.shape)  # 出力は、(128, 35)の次元を持つことになります。
-
-
-#------------------実行部分--------------------
+#--------------------------------------実行部分----------------------------------------
 # GPUを選択
 GPU = 1
 
@@ -218,8 +200,65 @@ with tf.device('/gpu:{}'.format(GPU)):
     generator = Generator()
     discriminator = Discriminator()
     encoder = VariationalEncoder()
-    # データセットの準備と訓練の実行
-    # dataset = 
+
+
+    #--------------word_prototypeの準備--------------
+    # 各word_prototype CSVを読み込む
+    with open('train_data_wordlist.txt', 'r') as f:
+        train_words_list = f.read().splitlines()
+    word_prototypes = {}
+    for word in train_words_list:  # words_listは訓練する単語のリスト
+        word_prototypes[word] = pd.read_csv(f'/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/prototype/prototype_csv/{word}.csv')
+
+
+    # ジェネレータへの入力として使用するために、numpy配列に変換する
+    word_prototype = word_prototype_df[['x_pos', 'y_pos']].to_numpy()
+
+    # ワードプロトタイプの形状を確認（この例では (128, 2) であるべき）
+    print(word_prototype.shape)
+
+    # TensorFlowデータセットを作成する
+    # ここではword_prototypeがすでに適切な形状（例: (128, 2)）を持っていると仮定している
+    # 実際の単語ごとのデータセットを持っている場合は、それぞれの単語についてこのプロセスを繰り返す
+    word_prototype_dataset = tf.data.Dataset.from_tensor_slices(word_prototype)
+
+    # データセットの各要素に適用する処理を定義（必要に応じて）
+    def preprocess_prototype(prototype):
+        # ここで任意の前処理を行う。例えば、座標の正規化、形状の変更、次元の追加など
+        # ここでは単純に形状を (128, 2) から (128, 3) に変更するダミーの処理を行っている
+        prototype = tf.concat([prototype, tf.zeros((128, 1))], axis=-1)  # z_posを追加
+        return prototype
+
+    # データセットに前処理を適用
+    word_prototype_dataset = word_prototype_dataset.map(preprocess_prototype)
+
+    # バッチ処理を行う
+    # バッチサイズはプログラムで指定した512などにする
+    word_prototype_dataset = word_prototype_dataset.batch(BATCH_SIZE)
+
+    # データセットが正しくバッチ処理されているかを確認
+    for batch in word_prototype_dataset.take(1):
+        print(batch.shape)  # 出力は (512, 128, 3) などの形状になる
+
+
+    # -----------------------ユーザの描いたジェスチャデータセットの準備-----------------------
+    # ユーザの描いたジェスチャデータセットを読み込む
+    dataset = 
+    # 仮のデータを用いて関数をテストする。
+    # word_prototype = tf.random.normal([128, 3])  # 128ステップのワードプロトタイプ
+    # z = tf.random.normal([32])                   # 32次元のガウシアンノイズ
+        
+    # 実データから潜在コードを生成
+    mu, log_var = encoder(dataset, training=False)  # エンコーダは推論モードで動作する
+    z = encoder.reparameterize(mu, log_var)
+
+    # -----------------------準備を経て，Generatorに与えるデータセットを作成-----------------------
+    # ジェネレータの入力を取得する。
+    gen_gen_input = get_generator_input(word_prototype, z)
+
+    print(gen_input.shape)  # get_gen_inputは、(128, 35)の次元を持つ
+
+    #--------------------------------------訓練部分----------------------------------------
     # 要調整
     epochs = 50
 

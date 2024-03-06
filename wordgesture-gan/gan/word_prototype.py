@@ -39,37 +39,36 @@ def read_words(file_path):
 def generate_and_save_plots(words, csv_folder, img_folder):
     n = 128  # 点の総数
     for word in words:
-        print(f"Generating prototype for {word}")
         # 単語を構成する各文字の中心座標を取得
         x_coords = [key_centers[char.upper()][0] for char in word]
         y_coords = [key_centers[char.upper()][1] for char in word]
 
-        # 点を均一に配置
+        # 点を均一に配置（前回のコードを使い、この部分は変更なし）
         x_values = []
         y_values = []
         for i in range(len(x_coords) - 1):
-            x_values.extend(np.linspace(x_coords[i], x_coords[i + 1], n // len(word) + 1)[:-1])
-            y_values.extend(np.linspace(y_coords[i], y_coords[i + 1], n // len(word) + 1)[:-1])
+            x_values.extend(np.linspace(x_coords[i], x_coords[i + 1], (n - len(word)) // (len(word) - 1) + 1)[:-1])
+            y_values.extend(np.linspace(y_coords[i], y_coords[i + 1], (n - len(word)) // (len(word) - 1) + 1)[:-1])
         x_values.append(x_coords[-1])  # 最後の点を追加
         y_values.append(y_coords[-1])  # 最後の点を追加
 
-        # # 計算されたプロットの座標を出力
-        # for i in range(len(x_values)):
-        #     print(f"Point {i+1}: ({x_values[i]}, {y_values[i]})")
-
-        # CSVファイルの保存
+        # ここからCSVファイルの保存処理を修正
         csv_file_path = os.path.join(csv_folder, f"{word}.csv")
         with open(csv_file_path, 'w') as csv_file:
             # ヘッダー
             csv_file.write("event,x_pos,y_pos,word\n")
             # データの書き込み
-            for i in range(len(x_values)):
+            for i in range(n):
                 event = 'touchmove'
                 if i == 0:
                     event = 'touchstart'
-                elif i == len(x_values) - 1:
+                elif i == n - 1:  # 最後の点を 'touchend' イベントとして扱う
                     event = 'touchend'
-                csv_file.write(f"{event},{x_values[i]},{y_values[i]},{word}\n")
+                # x_values[i] と y_values[i] が n 個に満たない場合のエラーを避けるための処理
+                x_pos = x_values[i] if i < len(x_values) else x_values[-1]
+                y_pos = y_values[i] if i < len(y_values) else y_values[-1]
+                csv_file.write(f"{event},{x_pos},{y_pos},{word}\n")
+
 
         # 画像の保存
         plt.figure(figsize=(10, 4.2))
