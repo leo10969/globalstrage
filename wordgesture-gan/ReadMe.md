@@ -10,6 +10,7 @@
 </script>
 
 
+
 ## 参考
 ### How We Swipe: A Large-scale Shape-writing Dataset and Empirical Findings
 https://dl.acm.org/doi/10.1145/3447526.3472059
@@ -17,6 +18,35 @@ https://dl.acm.org/doi/10.1145/3447526.3472059
 ### WordGesture-GAN: Modeling Word-Gesture Movement with Generative Adversarial Network
 https://dl.acm.org/doi/10.1145/3544548.3581279
 
+## wordgesture-ganプロジェクトの構成・ファイルの説明
+- datasets/：訓練，テストに使用するユーザが描いたジェスチャのデータ
+   - datasets_per_word/
+      - test_datasets/
+         - {word}.csv: 訓練用ジェスチャデータに含まれる単語のジェスチャ（複数ジェスチャある場合は同じファイルに最大5つのジェスチャが含まれる）
+      - train_datasets/
+         - {word}.csv: 訓練用ジェスチャデータに含まれる単語のジェスチャ（複数ジェスチャある場合は同じファイルに最大5つのジェスチャが含まれる）
+- formatting/：訓練，テストに使用するユーザが描いたジェスチャのデータの下処理を行うファイルを格納
+   - alphabet_detect.py:
+   - countcsvs.py:
+   - formatcsv.py:logファイルからcsvファイルに変換
+   - filtercsv.py:
+   - normalizecsvs.py:
+   - remove_empty_files.py:
+   - removetoomuch.py:
+   - reremove.py:
+   - data_split.py:
+   - data_split_each_word.py:
+   - train_data_words.py:
+   - make-wordslist.py:
+- gan/
+   - word_prototype.py
+   - wordgesture-gan-model.py: VAE, Generator, Discriminatorの定義，訓練
+   - wordgesture-gan-inference.py: 訓練モデルを用いて推論
+- prototype/
+   - prototype_csv/
+   - prototype_imgs/
+- Generator/
+- Discriminator/
 ## 手順1（下処理）
 How We Swipeの著者によって提供されているオープンソース（ログファイルなど）をhttps://osf.io/sj67f/
 からダウンロードする．
@@ -131,6 +161,7 @@ gen-lossの内容
 ![L_lat](https://private-user-images.githubusercontent.com/69385853/309205272-4be08e85-142c-4b61-af40-75adec0a7a32.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MDkyODQxNjMsIm5iZiI6MTcwOTI4Mzg2MywicGF0aCI6Ii82OTM4NTg1My8zMDkyMDUyNzItNGJlMDhlODUtMTQyYy00YjYxLWFmNDAtNzVhZGVjMGE3YTMyLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDAzMDElMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQwMzAxVDA5MDQyM1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPWMwYmFhYjBiYzYxMmY4ZDg1NDY3Mzk2ZGE0M2FkY2Q4OTIxMWI0OGE3MTYzNjgyMzJlMGZiNGI2MTg0YWE4ZjQmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JmFjdG9yX2lkPTAma2V5X2lkPTAmcmVwb19pZD0wIn0.GpeQCGuIcUXkN_QMoa_JIKuADT1xvYZikbhptxvFSrI)
 
 ## 手順3（Training）
+基本的にwordgesture-gan-model.py
 
 ### 各種パラメータ設定
 - ハイパパラメータ
@@ -143,3 +174,14 @@ gen-lossの内容
 - Discとエンコーダにおいて，全層にLeaky ReLUを使用
 - Genにおいて，全層にTanh
 - Spectral NormalizetionをDiscの全層に適用
+
+### 訓練の手順
+- create_generator_input関数を用いてeneratorの入力の用意（word_prototypeとユーザジェスチャの結合）：
+   - word_prototype
+      - word_prototype.py:各単語のword_prototypeとして，128点の座標をcsvファイルに保存＋プロットの画像を生成・保存
+      - word_prototypeは，128 x 2(x_pos, y_pos)なので，128 x 3になるようにz要素を追加
+   - ユーザジェスチャ
+      - 手順1で下処理したユーザジェスチャを変分エンコーダ（VAE）を通して 128 x 32の潜在コードzになるようにする
+      - make-wordslist.py:(ジェスチャごとにcsvファイルを作成するか，1つのファイル(data_eight.csv)にするかはわからんけど)下処理後の訓練用データにある全単語をリストアップ
+- epoch分train_step関数を実行
+   

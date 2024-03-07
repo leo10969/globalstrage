@@ -3,6 +3,7 @@ from tensorflow.keras import layers, Model
 from tensorflow.keras.layers import SpectralNormalization
 import torch
 import pandas as pd
+import numpy as np
 
 # Encoder
 class VariationalEncoder(tf.keras.Model):
@@ -118,18 +119,6 @@ class Generator(tf.keras.Model):
     
 
 #------------------訓練部分--------------------
-def get_generator_input(word_prototype, z):
-    """
-    Word Prototypeとガウシアンノイズzを組み合わせてジェネレータの入力を得る。
-    :param word_prototype: テキストから得られるワードプロトタイプ。
-    :param z: ヴァリエーショナルエンコーダから得られるガウシアンノイズ。
-    :return: ジェネレータの入力として使うための結合されたテンソル。
-    """
-    # ガウシアンノイズzの形状をプロトタイプの形状に合わせて拡張する。
-    z_expanded = tf.repeat(tf.reshape(z, [1, -1]), repeats=word_prototype.shape[0], axis=0)
-    # 拡張したノイズとワードプロトタイプを結合する。
-    generator_input = tf.concat([word_prototype, z_expanded], axis=1)
-    return generator_input
     
 # Discriminatorの更新回数
 DISC_UPDATES = 5
@@ -179,6 +168,23 @@ def train_step(real_data, generator, discriminator, encoder, generator_optimizer
     
     # エンコーダは凍結されているため、勾配計算や更新は行わない
 
+# 各単語のプロトタイプデータと各ジェスチャの潜在コードを結合する関数を定義
+def create_generator_inputs(word_prototypes, gestures_data, encoder):
+    generator_inputs = []
+    for index, row in gestures_data.iterrows():
+        word = row['word']  # ジェスチャに関連付けられた単語を取得
+        gesture_data = row['gesture_data']  # ジェスチャデータ
+        prototype_data = word_prototypes[word]  # その単語のプロトタイプデータを取得
+        # ジェスチャデータから潜在コードzを生成
+        mu, log_var = encoder(gesture_data)
+        z = encoder.reparameterize(mu, log_var)
+        # zをプロトタイプの形状に合わせて拡張
+        z_expanded = np.repeat(z[np.newaxis, :], prototype_data.shape[0], axis=0)
+        # zとプロトタイプを結合
+        generator_input = np.concatenate([prototype_data, z_expanded], axis=-1)
+        generator_inputs.append(generator_input)
+    
+    return np.array(generator_inputs)
 
 #--------------------------------------実行部分----------------------------------------
 # GPUを選択
@@ -208,14 +214,7 @@ with tf.device('/gpu:{}'.format(GPU)):
         train_words_list = f.read().splitlines()
     word_prototypes = {}
     for word in train_words_list:  # words_listは訓練する単語のリスト
-        word_prototypes[word] = pd.read_csv(f'/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/prototype/prototype_csv/{word}.csv')
-
-
-    # ジェネレータへの入力として使用するために、numpy配列に変換する
-    word_prototype = word_prototype_df[['x_pos', 'y_pos']].to_numpy()
-
-    # ワードプロトタイプの形状を確認（この例では (128, 2) であるべき）
-    print(word_prototype.shape)
+        word_prototypes[word] = pd.read_csv(f'/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/prototype/prototype_csv/{word}.csv', usecols=['x_pos', 'y_pos'])
 
     # TensorFlowデータセットを作成する
     # ここではword_prototypeがすでに適切な形状（例: (128, 2)）を持っていると仮定している
@@ -243,20 +242,30 @@ with tf.device('/gpu:{}'.format(GPU)):
 
     # -----------------------ユーザの描いたジェスチャデータセットの準備-----------------------
     # ユーザの描いたジェスチャデータセットを読み込む
-    dataset = 
-    # 仮のデータを用いて関数をテストする。
-    # word_prototype = tf.random.normal([128, 3])  # 128ステップのワードプロトタイプ
+    user_gestures_df = pd.read_csv('/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/datasets/train_datasets/data_eight.csv')
+    # # 仮のデータを用いて関数をテストする。
+    # word_prototype = tf.random.normal([128, 3])  # 128ステップのword_prototype
     # z = tf.random.normal([32])                   # 32次元のガウシアンノイズ
-        
-    # 実データから潜在コードを生成
-    mu, log_var = encoder(dataset, training=False)  # エンコーダは推論モードで動作する
-    z = encoder.reparameterize(mu, log_var)
+
+
+
+    # ユーザのジェスチャーデータを取得する
+    gestures_data = user_gestures_df[['word', 'gesture_data']]
+
+    # ジェネレータへの入力を作成
+    generator_inputs = create_generator_inputs(word_prototypes, gestures_data, encoder)
+
+    
 
     # -----------------------準備を経て，Generatorに与えるデータセットを作成-----------------------
-    # ジェネレータの入力を取得する。
-    gen_gen_input = get_generator_input(word_prototype, z)
+    # 潜在コードzを生成
+    latent_codes = generate_latent_codes(encoder, user_gestures_df['data'].values)
+    # ジェネレータへの入力を作成
+    generator_inputs = create_generator_inputs(word_prototypes, latent_codes)
 
-    print(gen_input.shape)  # get_gen_inputは、(128, 35)の次元を持つ
+    # 訓練データセットを作成
+    train_dataset = tf.data.Dataset.from_tensor_slices(generator_inputs).batch(BATCH_SIZE)
+
 
     #--------------------------------------訓練部分----------------------------------------
     # 要調整
