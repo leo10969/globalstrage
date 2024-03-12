@@ -53,7 +53,7 @@ def generate_and_save_plots(words, csv_folder, img_folder):
         y_values.append(y_coords[-1])  # 最後の点を追加
 
         # ここからCSVファイルの保存処理を修正
-        csv_file_path = os.path.join(csv_folder, f"{word}.csv")
+        csv_file_path = os.path.join(csv_folder, f"{word.lower()}.csv")
         with open(csv_file_path, 'w') as csv_file:
             # ヘッダー
             csv_file.write("event,x_pos,y_pos,word\n")

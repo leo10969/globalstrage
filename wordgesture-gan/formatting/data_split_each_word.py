@@ -19,6 +19,7 @@ def merge_and_split_gestures(input_directory, train_output_folder, test_output_f
     all_groups = []  # 各ジェスチャのグループID（ここでは単語）を格納するリスト
 
     for csv_file in csv_files:
+        print(f'Processing {csv_file}')
         df = pd.read_csv(csv_file, usecols=range(12))
         all_data.append(df)
         # "word"列の値をグループIDとして使用
@@ -52,7 +53,7 @@ def merge_and_split_gestures(input_directory, train_output_folder, test_output_f
 # GPUデバイスの選択
 with tf.device('/gpu:{}'.format(GPU)):
     # 入力ディレクトリと出力フォルダを指定
-    input_directory = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/datasets/swipecsvs_new'
+    input_directory = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/datasets/swipecsvs_128'
     train_output_folder = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/datasets/datasets_per_word/train_datasets'
     test_output_folder = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/datasets/datasets_per_word/test_datasets'
 
