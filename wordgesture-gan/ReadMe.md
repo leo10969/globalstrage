@@ -77,6 +77,11 @@ x_radius, y_radius, angle, word, is_err
 →formatting/にあるword_file_dict2.txtは，正規表現以外も含まれているので注意．一応，formatting/removetoomuch.pyの
 delete_word_group_from_file関数内に追記（ただし，試してない）．word_file_dict.txtを作成済みの場合は，alphabet_detect.pyを使用する
 
+- df = pd.read_csv(csv_file, usecols=range(12), keep_default_na=False)
+   - pd.read_csv():csvファイルを読み込む
+   - usecols:読み込む列数を指定．ヘッダーで直接指定も可．
+   - keep_default_na:df内の"nan"や"null"などを勝手に除かないように指定．
+   
 ### 下処理後のデータセットの中身
 - 約38000個のジェスチャデータ（1英単語最大5つのジェスチャデータ）
 - 約11000個の異なる2文字以上で構成される英単語

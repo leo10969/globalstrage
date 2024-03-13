@@ -19,19 +19,29 @@ def merge_and_split_gestures(input_directory, train_output_folder, test_output_f
     all_groups = []  # 各ジェスチャのグループID（ここでは単語）を格納するリスト
 
     for csv_file in csv_files:
-        print(f'Processing {csv_file}')
-        df = pd.read_csv(csv_file, usecols=range(12))
+        # print(f'Processing {csv_file}')
+        df = pd.read_csv(csv_file, usecols=range(12), keep_default_na=False)
+        # 列ごとにNaN値の数をカウント
+        nan_counts = df.isnull().sum()
+        
+        # NaN値を含む列のみを表示
+        nan_columns = nan_counts[nan_counts > 0]
+        
+        if not nan_columns.empty:
+            print(f"File: {csv_file} contains NaN values in the following columns:")
+            print(nan_columns)
         all_data.append(df)
         # "word"列の値をグループIDとして使用
         all_groups.extend(df['word'].unique())  # 重複を避けるためにunique()を使用
 
     # 全データを結合
     merged_df = pd.concat(all_data, ignore_index=True)
+    print(merged_df.isnull().sum())
 
     # GroupShuffleSplitを使用して訓練セットとテストセットに分割
     gss = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=42)
     train_idx, test_idx = next(gss.split(merged_df, groups=merged_df['word']))
-
+    
     train_df = merged_df.iloc[train_idx]
     test_df = merged_df.iloc[test_idx]
 
@@ -46,16 +56,20 @@ def merge_and_split_gestures(input_directory, train_output_folder, test_output_f
 
     # テストデータセットに含まれる単語のファイルを保存
     for word in unique_words_test:
-        word_test_df = test_df[test_df['word'] == word]
-        test_filename = f'{word}.csv'
+        word_test_df = test_df[test_df['word'] == word.lower()]
+        test_filename = f'{word.lower()}.csv'
         word_test_df.to_csv(os.path.join(test_output_folder, test_filename), index=False)
 
-# GPUデバイスの選択
-with tf.device('/gpu:{}'.format(GPU)):
-    # 入力ディレクトリと出力フォルダを指定
-    input_directory = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/datasets/swipecsvs_128'
-    train_output_folder = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/datasets/datasets_per_word/train_datasets'
-    test_output_folder = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/datasets/datasets_per_word/test_datasets'
+def main():
+    # GPUデバイスの選択
+    with tf.device('/gpu:{}'.format(GPU)):
+        # 入力ディレクトリと出力フォルダを指定
+        input_directory = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/datasets/swipecsvs_normalized'
+        train_output_folder = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/datasets/datasets_per_word/train_datasets'
+        test_output_folder = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/datasets/datasets_per_word/test_datasets'
 
-    # ジェスチャのまとまりを統合して分割
-    merge_and_split_gestures(input_directory, train_output_folder, test_output_folder)
+        # ジェスチャのまとまりを統合して分割
+        merge_and_split_gestures(input_directory, train_output_folder, test_output_folder)
+
+if __name__ == '__main__':
+    main()
