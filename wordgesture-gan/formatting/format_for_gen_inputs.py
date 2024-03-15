@@ -42,8 +42,8 @@ def process_group(group, original_columns):
 
     return new_group
 
-source_dir = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/datasets/datasets_per_word/train_datasets'
-target_dir = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/datasets/datasets_per_word/train_datasets_formatted'
+source_dir = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/datasets/datasets_per_word/test_datasets'
+target_dir = '/home/rsato/.vscode-server/data/User/globalStorage/wordgesture-gan/datasets/datasets_per_word/test_datasets_formatted'
 
 os.makedirs(target_dir, exist_ok=True)
 

@@ -5,6 +5,7 @@ import torch
 import pandas as pd
 import numpy as np
 import os
+import scipy.special as sp
 
 #--------------------------------------Variational Encoder----------------------------------------
 
@@ -41,7 +42,7 @@ class VariationalEncoder(tf.keras.Model):
         return tf.reduce_mean(tf.abs(z - z_generated))
     
     # KL divergence loss（カルバック・ライブラー発散損失）
-    def L_KLD(self, real_output):
+    def L_KLD(self, real_data_flat):
         """
         カルバック・ライブラー発散損失 L_KLD を計算
 
@@ -49,8 +50,9 @@ class VariationalEncoder(tf.keras.Model):
         :param log_var: 変分エンコーダの出力した対数分散ベクトル
         :return: KL divergence損失のスカラー値
         """
-        mu, log_var = self.call(real_output)
-        return -0.5 * tf.reduce_mean(1 + log_var - tf.square(mu) - tf.exp(log_var))
+        real_data = tf.reshape(real_data_flat, [real_data_flat.shape[0], 128, 3])
+        mu, log_var = self.call(real_data)
+        return sp.kl_div(mu, log_var)
 
 
 
@@ -61,7 +63,7 @@ class Discriminator(tf.keras.Model):
         super(Discriminator, self).__init__()
         #正規化のためにSpectralNormalizationを使用
         self.discriminator = tf.keras.Sequential([
-            SpectralNormalization(layers.Dense(192, activation=tf.keras.layers.LeakyReLU()), input_shape=(384,)),
+            SpectralNormalization(layers.Dense(192, activation=tf.keras.layers.LeakyReLU())),
             SpectralNormalization(layers.Dense(96, activation=tf.keras.layers.LeakyReLU())),
             SpectralNormalization(layers.Dense(48, activation=tf.keras.layers.LeakyReLU())),
             SpectralNormalization(layers.Dense(24, activation=tf.keras.layers.LeakyReLU())),
@@ -72,8 +74,10 @@ class Discriminator(tf.keras.Model):
         return self.discriminator(x)
     
     #disc-loss（損失関数）
-    def disc_loss(self, real_output, fake_output):
-        loss_D = -tf.reduce_mean(self.discriminator(real_output)) + tf.reduce_mean(self.discriminator(fake_output))
+    def disc_loss(self, fake_data_flat, real_data_flat):
+        fake_output = self.discriminator(fake_data_flat, training=True)
+        real_output = self.discriminator(real_data_flat, training=True)
+        loss_D = -tf.reduce_mean(real_output) + tf.reduce_mean(fake_output)
         return loss_D
 
     # 特徴抽出用の関数
@@ -103,19 +107,21 @@ class Generator(tf.keras.Model):
         return self.dense(x)
     
     #gen-loss（損失関数）
-    def gen_loss(self, fake_output, real_output, z, z_generated):
-        fake_features = Discriminator.extract_features(fake_output)
-        real_features = Discriminator.extract_features(real_output)
-        loss_G = - Discriminator.disc_loss(fake_output, real_output)\
-                 + lambda_feat * self.L_feat(fake_features, real_features) \
+    def gen_loss(self, discriminator, encoder, fake_data_flat, real_data_flat, z, z_generated):
+        fake_output = discriminator(fake_data_flat, training=True)
+        real_output = discriminator(real_data_flat, training=True)
+        loss_G = - discriminator.disc_loss(fake_data_flat, real_data_flat)\
+                 + lambda_feat * self.L_feat(discriminator, fake_data_flat, real_data_flat) \
                  + lambda_rec * self.L_rec(fake_output, real_output) \
-                 + lambda_lat * VariationalEncoder.L_lat(z, z_generated) \
-                 + lambda_KLD * VariationalEncoder.L_KLD(real_output)
+                 + lambda_lat * encoder.L_lat(z, z_generated) \
+                 + lambda_KLD * encoder.L_KLD(real_data_flat)
         return loss_G
     
     # 特徴マッチング損失計算
-    def L_feat(self, fake_features, real_features):
+    def L_feat(self, discriminator, fake_output, real_output):
         loss = 0
+        fake_features = discriminator.extract_features(fake_output)
+        real_features = discriminator.extract_features(real_output)
         for fake_feature, real_feature in zip(fake_features, real_features):
             loss += tf.reduce_mean(tf.abs(fake_feature - real_feature))
         return loss
@@ -145,22 +151,20 @@ lambda_KLD = 0.05
 # 訓練ステップの定義
 # @tf.function
 def train_step(real_data, generator, discriminator, encoder, generator_optimizer, discriminator_optimizer, z, gen_input):
+    # print('gen_input:', gen_input.shape)
+    real_data_flat = tf.reshape(real_data, [real_data.shape[0], -1])
+    
     # Discriminatorの更新
     for _ in range(DISC_UPDATES):
         with tf.GradientTape() as disc_tape:
-            fake_data = generator(gen_input)
-            print('fake_data:', fake_data)
-            
-            real_data_flat = tf.reshape(real_data, [real_data.shape[0], -1])
+            fake_data = generator(gen_input, training=True)
+            #fake_dataの形状を確認
+            # print('fake_data:', fake_data.shape)
+            # print('real_data:', real_data.shape)
             fake_data_flat = tf.reshape(fake_data, [fake_data.shape[0], -1])
-            # print('real_data_flat:', real_data_flat)
-            # print('fake_data_flat:', fake_data_flat)
-            # Discriminatorを使用して本物と偽物のデータを評価
-            real_output = discriminator(real_data_flat, training=True)
-            fake_output = discriminator(fake_data_flat, training=True)
 
             # Discriminatorの損失を計算
-            disc_loss = discriminator.disc_loss(real_output, fake_output)
+            disc_loss = discriminator.disc_loss(fake_data_flat, real_data_flat)
 
             # 勾配を計算し、オプティマイザを使用してDiscriminatorの重みを更新
             gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
@@ -168,19 +172,16 @@ def train_step(real_data, generator, discriminator, encoder, generator_optimizer
     
     # Generatorの更新
     with tf.GradientTape() as gen_tape:
-        # ジェネレータを使用して偽のデータを生
-        fake_data = generator(gen_input)
+        # ジェネレータを使用して偽のジェスチャデータを生成
+        fake_data = generator(gen_input, training=True)
         fake_data_flat = tf.reshape(fake_data, [fake_data.shape[0], -1])
-        # Discriminatorを使用して偽物のデータを評価
-        fake_output = discriminator(fake_data_flat, training=True)
 
-        # 生成されたジェスチャーから潜在コードを再エンコード
+        # 生成されたジェスチャから潜在コードを再エンコード
         mu_generated, log_var_generated = encoder(fake_data)
         z_generated = encoder.reparameterize(mu_generated, log_var_generated)
 
         # Generatorの損失を計算
-        gen_loss = generator.gen_loss(fake_output, real_output, z, z_generated)
-
+        gen_loss = generator.gen_loss(discriminator, encoder, fake_data_flat, real_data_flat, z, z_generated)
 
     # Generatorの勾配を計算し、オプティマイザを使用してGeneratorの重みを更新
     gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
@@ -188,6 +189,7 @@ def train_step(real_data, generator, discriminator, encoder, generator_optimizer
     
     # エンコーダは凍結されているため、勾配計算や更新は行わない
     print('trained')
+
 
 # mk_train_inputs.pyにて作成されたデータの読み込み
 def load_processed_data(load_dir='processed_data'):
